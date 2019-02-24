@@ -10,5 +10,4 @@ setup(name='python-util',
       packages=['util'],
       zip_safe=False,
       test_suite='nose.collector',
-      tests_require=['nose'],
-      )
+      tests_require=['nose'])
