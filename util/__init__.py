@@ -3,6 +3,15 @@ from contextlib import contextmanager
 import inspect
 import numpy as np
 import types
+import numbers
+import random
+import string
+import os
+import re
+
+
+def random_string(N=16):
+    return ''.join(random.choices(string.ascii_letters + string.digits, k=N))
 
 
 def in_dict_and_has_value(key, dictionary, value, compare_func=None):
@@ -29,12 +38,84 @@ def in_dict_and_true(key, dictionary):
                                  compare_func=lambda val1, val2: val1 is True)
 
 
+def add_singleton(singleton_object_name="_singleton",
+                  singleton_subclass_name="Singleton",
+                  check_function=None,
+                  check_function_name="check_function"):
+    """
+    Class decorator to add a singleton object
+    :param singleton_object_name:
+    :param singleton_subclass_name:
+    :param check_function:
+    :param check_function_name:
+    :return:
+    """
+    def decorator(Cls):
+        # helper method to add static method to class
+        def add_static(cls, func_name, func):
+            setattr(cls, func_name, func)
+            setattr(cls, func_name, staticmethod(getattr(cls, func_name)))
+        # add singleton attribute to class
+        setattr(Cls, singleton_object_name, None)
+        # add singleton subclass
+        class SingletonTMP:
+            pass
+        setattr(SingletonTMP, "__name__", singleton_subclass_name)
+        setattr(Cls, singleton_subclass_name, SingletonTMP)
+        singleton_subclass = getattr(Cls, singleton_subclass_name)
+        # add check function
+        if check_function is None:
+            def _check_function():
+                if not getattr(Cls, singleton_object_name, False):
+                    setattr(Cls, singleton_object_name, Cls())
+        else:
+            _check_function = check_function
+        add_static(singleton_subclass, check_function_name, _check_function)
+        # add static methods to singleton subclass that first check and
+        # then call respective function on singleton object
+        for name, method in inspect.getmembers(Cls, predicate=inspect.isfunction):
+            def f(*args, **kwargs):
+                getattr(singleton_subclass, check_function_name)()
+                return method(getattr(Cls, singleton_object_name), *args, **kwargs)
+            add_static(singleton_subclass, name, f)
+        return Cls
+    return decorator
+
+
+def create_singleton_class(Cls,
+                           singleton_object_name="_singleton",
+                           singleton_class_name="Singleton"):
+    # helper method to add static method to class
+    def add_static(cls, func_name, func):
+        setattr(cls, func_name, func)
+        setattr(cls, func_name, staticmethod(getattr(cls, func_name)))
+    # create singleton class
+    class SingletonTMP:
+        pass
+    # add singleton object
+    setattr(SingletonTMP, singleton_object_name, Cls())
+    singleton_object = getattr(SingletonTMP, singleton_object_name)
+    # add static methods for every bound method in singleton object
+    for name, method in inspect.getmembers(singleton_object, predicate=inspect.ismethod):
+        def f(*args, **kwargs):
+            return method(*args, **kwargs)
+        add_static(SingletonTMP, name, f)
+    setattr(SingletonTMP, "__name__", singleton_class_name)
+    return SingletonTMP
+
+
+class Index:
+    """
+    A class to create index objects using conventional syntax. An Index object will return the index when being indexed.
+    """
+    def __getitem__(self, item):
+        return item
+
+
 class NestedOutput:
     """Class to handle nested output with indentation"""
 
-    _singleton = None
-
-    def __init__(self, print_func=print, indent_func=None, debug_func=None, prepend_debug=False):
+    def __init__(self, print_func=print, indent_func=None, debug_func=None, prepend_debug=False, prepend_debug_level=1):
         self.indent_list = []
         self.active_list = []
         if indent_func is None:
@@ -47,7 +128,7 @@ class NestedOutput:
             self.debug_func = debug_func
         self.print_func = print_func
         self._prepend_debug = prepend_debug
-        self._prepend_debug_level = 1
+        self._prepend_debug_level = prepend_debug_level
 
     def open(self, indent="│  ", active=True):
         """open new output context with given indentation"""
@@ -63,11 +144,7 @@ class NestedOutput:
         """print into current output context using indentation provided via previous open() calls"""
         if not self.active_list or self.active_list[-1]:
             # prepending debug information
-            # prepend_debug = self._prepend_debug
-            # if in_dict_and_not_none("prepend_debug", kwargs):
-            #     prepend_debug = kwargs["prepend_debug"]
             if self._prepend_debug:
-            # if prepend_debug:
                 caller = inspect.getframeinfo(inspect.stack()[self._prepend_debug_level][0])
                 self.debug_func(f"{caller.filename}:{caller.lineno} ")
             # print indentation
@@ -102,39 +179,29 @@ class NestedOutput:
 
 class NestedOutputSingleton:
     """Class to provide global nested output handling. The class uses static methods to provide the same interface
-    as a NestedOutput objects and hands calls over to the singleton object after ensuring its existence."""
+    as a NestedOutput objects and hands calls over a static class-level object."""
 
-    @staticmethod
-    def check_singleton():
-        if not NestedOutput._singleton:
-            NestedOutput._singleton = NestedOutput()
-            # level has to be 2 instead of one because of indirect call of print function
-            NestedOutput._singleton._prepend_debug_level = 2
+    _singleton = NestedOutput(prepend_debug_level=2)
 
     @staticmethod
     def open(*args, **kwargs):
-        NestedOutputSingleton.check_singleton()
-        NestedOutput._singleton.open(*args, **kwargs)
+        NestedOutputSingleton._singleton.open(*args, **kwargs)
 
     @staticmethod
     def close():
-        NestedOutputSingleton.check_singleton()
-        NestedOutput._singleton.close()
+        NestedOutputSingleton._singleton.close()
 
     @staticmethod
     def print(*args, **kwargs):
-        NestedOutputSingleton.check_singleton()
-        NestedOutput._singleton.print(*args, **kwargs)
+        NestedOutputSingleton._singleton.print(*args, **kwargs)
 
     @staticmethod
     def prepend_debug(*args, **kwargs):
-        NestedOutputSingleton.check_singleton()
-        NestedOutput._singleton.prepend_debug(*args, **kwargs)
+        NestedOutputSingleton._singleton.prepend_debug(*args, **kwargs)
 
     @staticmethod
     def deco(*args, **kwargs):
-        NestedOutputSingleton.check_singleton()
-        return NestedOutput._singleton.deco(*args, **kwargs)
+        return NestedOutputSingleton._singleton.deco(*args, **kwargs)
 
     def __init__(self, *args, **kwargs):
         self.args = args
@@ -147,13 +214,10 @@ class NestedOutputSingleton:
     def __exit__(self, *args):
         NestedOutputSingleton.close()
 
+
 class NestedOutputDummy:
     """Class to provide a dummy object that mocks the Singleton interface without actually doing anything. This is
     to efficiently supressing debug output by reassigning the used class instead of changing the actual code."""
-
-    @staticmethod
-    def check_singleton():
-        pass
 
     @staticmethod
     def open(*args, **kwargs):
@@ -197,6 +261,23 @@ class NestedOutputDummy:
 NO = NestedOutputDummy      # debug output inactive
 
 
+def add_hash(Cls):
+    """
+    Class decorator that defines a hash function by hashing the tuple of the class name and all key-value-pairs
+    in __dict__.
+    """
+
+    def __hash__(self):
+        t = [self.__class__.__name__]
+        for key, val in self.__dict__.items():
+            t += [(key, val)]
+        return hash(tuple(t))
+
+    Cls.__hash__ = __hash__
+
+    return Cls
+
+
 def add_eq(Cls):
     """
     Class decorator to add an __eq__ method.
@@ -207,6 +288,10 @@ def add_eq(Cls):
 
     def __eq__(self, other):
         if isinstance(other, type(self)):
+            # attributes don't match
+            if list(self.__dict__.keys()) != list(other.__dict__.keys()):
+                return False
+            # attribute values don't match
             for this_prop, other_prop in zip(self.__dict__.values(), other.__dict__.values()):
                 try:
                     if this_prop != other_prop:
@@ -401,7 +486,7 @@ class NDSlicable:
     @NO.deco()
     def adjust_dimension(self, dim_idx, item):
         dim = self._dimensions[dim_idx]
-        if isinstance(item, int):
+        if isinstance(item, numbers.Integral):
             # a single index
             start_ = 0 if dim.value.start is None else dim.value.start
             step_ = 1 if dim.value.step is None else dim.value.step
@@ -474,7 +559,7 @@ class NDSlicable:
             else:
                 ValueError(f"Could not process remaining indices/slices '{sub_items}' specified by '{item}' because "
                            f"all free dimensions were fixed.")
-        elif isinstance(item, (int, slice)):
+        elif isinstance(item, (numbers.Integral, slice)):
             dim_idx = self.first_free_dim()
             if dim_idx is not None:
                 self.adjust_dimension(dim_idx=dim_idx, item=item)
@@ -569,3 +654,44 @@ def wrap_bound_method(object, method, new_name, pre=lambda: None, post=lambda: N
         post()
     # use that new function in place of the old one
     setattr(object, method, types.MethodType(f, object))
+
+
+def iterate_files(root_dir,
+                  depth=-1,
+                  path_regex="",
+                  file_regex="",
+                  return_full_path=False,
+                  return_dir_path=False,
+                  return_file_name=False):
+    # get length of root path
+    root_depth = len(root_dir.split(os.path.sep))
+    # compile regex
+    path_regex = re.compile(path_regex)
+    file_regex = re.compile(file_regex)
+    # walk through tree
+    for dir_path, dir_names, file_names in os.walk(root_dir):
+        # break on maximum depth
+        if 0 <= depth < len(dir_path.split(os.path.sep)) - root_depth:
+            continue
+        # skip non-matching directories
+        if not path_regex.match(dir_path):
+            continue
+        for file in file_names:
+            # skip non-matching files
+            if not file_regex.match(file):
+                continue
+            # construct tuple to return
+            ret = tuple()
+            if return_full_path:
+                ret = ret + (os.path.join(dir_path, file), )
+            if return_dir_path:
+                ret = ret + (dir_path, )
+            if return_file_name:
+                ret = ret + (file, )
+            # return
+            if len(ret) == 0:
+                yield None
+            elif len(ret) == 1:
+                yield ret[0]
+            else:
+                yield ret
