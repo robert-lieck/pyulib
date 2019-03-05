@@ -5,11 +5,6 @@ from util import NestedOutput, NestedOutputSingleton
 class TestNestedOutput(TestCase):
 
     def test_output(self):
-
-        # remember old singleton object and reset
-        old_singleton = NestedOutput._singleton
-        NestedOutput._singleton = None
-
         # test for regular object and singleton
         for active_deco_func in [True, False]:
             for add_print_func in [True, False]:
@@ -39,8 +34,8 @@ class TestNestedOutput(TestCase):
 
                     # set print and indent of singleton (was created when decorating function)
                     if singleton:
-                        NestedOutput._singleton.print_func = print_func
-                        NestedOutput._singleton.indent_func = indent_func
+                        NestedOutputSingleton._singleton.print_func = print_func
+                        NestedOutputSingleton._singleton.indent_func = indent_func
 
                     no.open("    ")
                     no.print("outer 1")
@@ -59,9 +54,6 @@ class TestNestedOutput(TestCase):
                                      (["            ----", "function output"] if active_deco_func else []) +
                                      ["            ", "inner inner 2", "        ", "inner 2", "    ", "outer 2"],
                                      f"singleton: {singleton}, deactivate: {active_deco_func}")
-
-        # reset print function and singleton object
-        NestedOutput._singleton = old_singleton
 
     def test_context_manager(self):
         l = []
