@@ -107,6 +107,18 @@ def create_singleton_class(Cls,
 class Index:
     """
     A class to create index objects using conventional syntax. An Index object will return the index when being indexed.
+
+    This class can be used as follows:
+
+        from util import Index
+        I = Index()
+
+        def f(l, i):
+            return l[i]
+
+        l = [1, 2, 3, 4, 5, 6]
+        i = I[1:6:2]
+        assert(f(l, i) == [2, 4, 6])
     """
     def __getitem__(self, item):
         return item
