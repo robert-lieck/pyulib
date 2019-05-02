@@ -742,3 +742,42 @@ def iterate_files(root_dir,
                 yield ret[0]
             else:
                 yield ret
+
+
+def nested_enum(data, depth=None, _index=()):
+    """
+    Iterate through nested iterables returning index tuple and value, that is, like enumerate but nested and thus
+    with index tuples.
+    :param data: nested iterable
+    :param depth: maximum depth to follow nested structures
+    :param _index: start index that is appended when traversing to the next level (only for internal use in recursive
+    calls)
+    :return:
+    """
+    if depth is not None and depth == 0:
+        yield _index, data
+    else:
+        try:
+            for sub_index, sub_data in enumerate(data):
+                new_index = _index + (sub_index,)
+                yield from nested_enum(data=sub_data, _index=new_index, depth=None if depth is None else depth - 1)
+        except TypeError:
+            yield _index, data
+
+
+def append_nested(nested_list, elem, index, check_index=True):
+    """
+    Append elem to nested_list at index checking if index is actually adjacent
+    """
+    unnested_list = nested_list
+    max_level = len(index) - 1
+    for level, idx in enumerate(index):
+        if idx == len(unnested_list):
+            if level < max_level:
+                unnested_list.append([])
+            else:
+                unnested_list.append(elem)
+        if check_index and idx != len(unnested_list) - 1:
+            raise UserWarning(f"Index at level {level} is not adjacent")
+        unnested_list = unnested_list[idx]
+
