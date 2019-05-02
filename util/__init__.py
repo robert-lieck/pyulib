@@ -329,8 +329,8 @@ def add_eq(Cls):
     """
     Class decorator to add an __eq__ method.
 
-    Equality is defined by comparing all fields (in self.__dict__) in two steps: 1. directly 2. if that fails
-    by using numpy.any in case the field is a numpy array.
+    Equality is defined by comparing all fields (in self.__dict__). Lists, tuples and numpy arrays are compared using
+    numpy.array_equal.
     """
 
     def __eq__(self, other):
@@ -339,16 +339,21 @@ def add_eq(Cls):
             if list(self.__dict__.keys()) != list(other.__dict__.keys()):
                 return False
             # attribute values don't match
-            for this_prop, other_prop in zip(self.__dict__.values(), other.__dict__.values()):
+            for (this_key, this_prop), (other_key, other_prop) in zip(self.__dict__.items(), other.__dict__.items()):
                 try:
-                    if this_prop != other_prop:
-                        return False
-                except ValueError:
-                    if np.any(this_prop != other_prop):
-                        return False
+                    if isinstance(this_prop, (list, tuple, np.ndarray)) \
+                            and isinstance(other_prop, (list, tuple, np.ndarray)):
+                        if not np.array_equal(this_prop, other_prop):
+                            return False
+                    else:
+                        if this_prop != other_prop:
+                            return False
                 except Exception as e:
-                    raise UserWarning("Failed to compute equality between objects {} and {}\n"
-                                      "Exception: {}".format(self, other, repr(e)))
+                    raise UserWarning(f"Failed to compute equality between objects {self} and {other}\n"
+                                      f"Failed while evaluating {this_key} != {other_key} with\n"
+                                      f"    {this_key} (type: {type(this_prop)}): {this_prop}\n"
+                                      f"    {other_key} (type: {type(other_prop)}): {other_prop}"
+                                      f"Exception: {repr(e)}")
             return True
         else:
             return NotImplemented
