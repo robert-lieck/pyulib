@@ -129,7 +129,6 @@ class Index(object, metaclass=MetaIndex):
     pass
 
 
-
 class NestedOutput:
     """Class to handle nested output with indentation"""
 
@@ -814,3 +813,51 @@ def dump(data, file_path, overwrite=False):
     with open(file_path, 'wb' if overwrite else 'xb') as f_out:
         for idx in range(0, n_bytes, max_bytes):
             f_out.write(bytes_out[idx:idx+max_bytes])
+
+
+def index_to_tuple(index):
+    if isinstance(index, tuple):
+        return tuple(elem.__reduce__() if isinstance(elem, slice) else elem for elem in index)
+    else:
+        if isinstance(index, slice):
+            return (index.__reduce__(),)
+        else:
+            return (index,)
+
+
+def tuple_to_index(t):
+    t = tuple(tt[0](*tt[1]) if isinstance(tt, tuple) and tt[0] == slice else tt for tt in t)
+    if len(t) == 1:
+        return t[0]
+    else:
+        return t
+
+
+@add_repr
+@add_eq
+class IndexRecorder:
+
+    def __init__(self):
+        self.assignments = []
+        self._frozen = False
+
+    def __setitem__(self, key, value):
+        if self._frozen:
+            raise IndexError("Trying to assign to frozen IndexRecorder")
+        self.assignments.append((key, value))
+
+    def freeze(self):
+        self._frozen = True
+        self.assignments = tuple((index_to_tuple(a[0]), a[1]) for a in self.assignments)
+
+    def apply(self, container):
+        for key, val in self.assignments:
+            if self._frozen:
+                key = tuple_to_index(key)
+            container[key] = val
+
+    def __hash__(self):
+        if self._frozen:
+            return hash(tuple(self.assignments))
+        else:
+            raise UserWarning("Non-frozen IndexRecorder objects are not hashable")
