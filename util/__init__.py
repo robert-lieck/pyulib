@@ -131,34 +131,63 @@ class Index(object, metaclass=MetaIndex):
 class NestedOutput:
     """Class to handle nested output with indentation"""
 
-    def __init__(self, print_func=print, indent_func=None, debug_func=None, prepend_debug=False, prepend_debug_level=1):
+    def __init__(self,
+                 print_func=None,
+                 indent_func=None,
+                 debug_func=None,
+                 same_line_func=None,
+                 prepend_debug=False,
+                 prepend_debug_level=1):
         self.indent_list = []
         self.active_list = []
+        self.same_line_list = []
+        # print_func
+        if print_func is None:
+            self.print_func = lambda *args, same_line=False, **kwargs: print(*args,
+                                                                             **kwargs,
+                                                                             **{'end': '',
+                                                                                'flush': True} if same_line else {})
+        else:
+            self.print_func = print_func
+        # indent_func
         if indent_func is None:
             self.indent_func = lambda *args, **kwargs: print(*args, **kwargs, end='')
         else:
             self.indent_func = print_func
+        # debug_func
         if debug_func is None:
             self.debug_func = lambda *args, **kwargs: print(*args, **kwargs, end='')
         else:
             self.debug_func = debug_func
-        self.print_func = print_func
+        # same_line_func
+        if same_line_func is None:
+            self.same_line_func = lambda: print('\r', end='')
+        else:
+            self.same_line_func = same_line_func
+        # prepend debug variables
         self._prepend_debug = prepend_debug
         self._prepend_debug_level = prepend_debug_level
 
-    def open(self, indent="│  ", active=True):
+    def open(self, indent="│  ", active=True, same_line=False):
         """open new output context with given indentation"""
         self.indent_list.append(indent)
         self.active_list.append(active)
+        self.same_line_list.append(same_line)
 
     def close(self):
         """close current output context"""
         self.indent_list.pop()
         self.active_list.pop()
+        self.same_line_list.pop()
 
     def print(self, *args, **kwargs):
         """print into current output context using indentation provided via previous open() calls"""
         if not self.active_list or self.active_list[-1]:
+            # go to beginning of line
+            same_line = {}
+            if self.same_line_list and self.same_line_list[-1]:
+                same_line = {'same_line': True}
+                self.same_line_func()
             # prepending debug information
             if self._prepend_debug:
                 caller = inspect.getframeinfo(inspect.stack()[self._prepend_debug_level][0])
@@ -168,7 +197,7 @@ class NestedOutput:
                 "".join([indent if active else "" for indent, active in zip(self.indent_list, self.active_list)])
             )
             # print actual message
-            self.print_func(*args, **kwargs)
+            self.print_func(*args, **kwargs, **same_line)
 
     def prepend_debug(self, prepend=True):
         self._prepend_debug = prepend
