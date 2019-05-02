@@ -487,6 +487,7 @@ class AddRepr:
 
 
 @add_repr
+@add_eq
 class NDSlicable:
     """
     This is a wrapper class that implements slicing for immutable objects that can be indexed. Unlike regular
@@ -510,6 +511,7 @@ class NDSlicable:
     """
 
     @add_repr
+    @add_eq
     class DimEntry:
         def __init__(self, is_fixed=False, value=None, out_of_bounds=False):
             if value is None:
