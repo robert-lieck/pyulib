@@ -8,6 +8,8 @@ import random
 import string
 import os
 import re
+import sys
+import pickle
 
 
 def random_string(N=16):
@@ -781,3 +783,29 @@ def append_nested(nested_list, elem, index, check_index=True):
             raise UserWarning(f"Index at level {level} is not adjacent")
         unnested_list = unnested_list[idx]
 
+
+def load(file_path):
+    """
+    This is a defensive way to write pickle.load, allowing for very large files on all platforms
+    https://stackoverflow.com/questions/42653386/does-pickle-randomly-fail-with-oserror-on-large-files?rq=1
+    """
+    max_bytes = 2 ** 31 - 1
+    input_size = os.path.getsize(file_path)
+    bytes_in = bytearray(0)
+    with open(file_path, 'rb') as f_in:
+        for _ in range(0, input_size, max_bytes):
+            bytes_in += f_in.read(max_bytes)
+    return pickle.loads(bytes_in)
+
+
+def dump(data, file_path, overwrite=False):
+    """
+    This is a defensive way to write pickle.write, allowing for very large files on all platforms
+    https://stackoverflow.com/questions/42653386/does-pickle-randomly-fail-with-oserror-on-large-files?rq=1
+    """
+    max_bytes = 2**31 - 1
+    bytes_out = pickle.dumps(data)
+    n_bytes = sys.getsizeof(bytes_out)
+    with open(file_path, 'wb' if overwrite else 'xb') as f_out:
+        for idx in range(0, n_bytes, max_bytes):
+            f_out.write(bytes_out[idx:idx+max_bytes])
