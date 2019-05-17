@@ -861,3 +861,90 @@ class IndexRecorder:
             return hash(tuple(self.assignments))
         else:
             raise UserWarning("Non-frozen IndexRecorder objects are not hashable")
+
+
+def merge_dicts(*dicts, depth=None):
+    """
+    Recursively merges multiple dictionaries into one. Earlier dictionaries override later ones. If all values for
+    a specific key are dictionaries, merging is performed recursively.
+    :param dicts:
+    :return:
+    """
+    # taken/inspired from: https: // stackoverflow.com / questions / 20656135 / python - deep - merge - dictionary - data
+    # collect keys
+    key_set = set()
+    for d in dicts:
+        for key in d.keys():
+            key_set.add(key)
+    # fill construct new dict
+    return_dict = {}
+    for key in key_set:
+        values = [d[key] for d in dicts if key in d]
+        if not values:
+            raise UserWarning("Could not find key while merging dicts. This is a bug.")
+        if np.all([isinstance(v, dict) for v in values]) and (depth is None or depth > 0):
+            # all values are dicts --> merge recursively
+            return_dict[key] = merge_dicts(*values, depth=depth - 1 if depth is not None else None)
+        else:
+            # at least one value is not a dict --> take first value
+            return_dict[key] = values[0]
+    return return_dict
+
+
+def dict_from_attributes(attributes, objects, raise_attr_error=True):
+    """
+    Retrieve dictionary of attribute values from list objects. Attributes are only included if their value is the same
+    for all objects.
+    :param attributes: the attributes to retrieve (iterable of strings)
+    :param objects: list of objects to retrieve the attribute values from
+    :return:
+    """
+    return_dict = {}
+    for key in attributes:
+        for o in objects:
+            delete = True
+            try:
+                val = getattr(o, key)
+                if key not in return_dict:
+                    # new key --> add value and don't delete
+                    return_dict[key] = val
+                    delete = False
+                else:
+                    try:
+                        if return_dict[key] == val:
+                            # value is the same --> don't delete
+                            delete = False
+                    except ValueError:
+                        # comparison failed --> delete
+                        pass
+            except AttributeError:
+                if raise_attr_error:
+                    raise
+                else:
+                    # ignore error and delete
+                    pass
+            if delete:
+                # delete attribute from dictionary (if present) and break loop for this attribute,
+                # i.e., continue with next attribute
+                if key in return_dict:
+                    del return_dict[key]
+                break
+    return return_dict
+
+
+def default_override_exclude_dict(default_dict, override_dict=(), exclude=()):
+    """
+    Construct a dictionary using default value
+    :param default_dict: default values; only keys contained in default_dict will be considered; their value will be the
+    one provided in default_dict, unless found in override_dice, unless found in exclude dict
+    :param override_dict: entries in this dictionary override those in default_dict
+    :param exclude: keys found in in exclude are excluded from the return dictionary
+    :return: dictionary with values from default_dict or override_dict unless present in exclude
+    """
+    return_dict = {}
+    for key, val in default_dict.items():
+        if key not in exclude:
+            if key in override_dict:
+                val = override_dict[key]
+            return_dict[key] = val
+    return return_dict
