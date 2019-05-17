@@ -948,3 +948,47 @@ def default_override_exclude_dict(default_dict, override_dict=(), exclude=()):
                 val = override_dict[key]
             return_dict[key] = val
     return return_dict
+
+
+def pretty_table(iterable, alignment='l', keep_rows=False, keep_cells=False):
+    # get nested list of cells and determine minimum column width
+    raw_table = []
+    col_widths = {}
+    for row in iterable:
+        raw_table.append([])
+        for col_idx, cell in enumerate(row):
+            cell_str = str(cell)
+            cell_width = len(cell_str)
+            raw_table[-1].append(cell_str)
+            try:
+                col_widths[col_idx] = max(col_widths[col_idx], cell_width)
+            except KeyError:
+                col_widths[col_idx] = cell_width
+    col_widths = [col_widths[i] for i in range(len(col_widths))]
+    # get alignment
+    if alignment in ['l', 'c', 'r']:
+        alignment = [alignment for _ in col_widths]
+    else:
+        if len(alignment) != len(col_widths):
+            raise UserWarning(f"Number of alignment specifiers does not equal number of columns "
+                              f"({len(alignment)} != {len(col_widths)})")
+    for col_idx in range(len(alignment)):
+        a = alignment[col_idx]
+        if a == 'l':
+            alignment[col_idx] = str.ljust
+        elif a == 'c':
+            alignment[col_idx] = str.center
+        elif a == 'r':
+            alignment[col_idx] = str.rjust
+        else:
+            raise UserWarning(f"Alignment specifies must be one of ('l', 'r', 'c'), got: {alignment}")
+    # write to string
+    if not keep_cells:
+        for row_idx in range(len(raw_table)):
+            raw_table[row_idx] = " ".join([align(cell, width) for align, cell, width in zip(alignment,
+                                                                                            raw_table[row_idx],
+                                                                                            col_widths)])
+    if keep_rows:
+        return raw_table
+    else:
+        return '\n'.join(raw_table)
