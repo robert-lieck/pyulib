@@ -8,13 +8,13 @@ class TestAdd_repr(TestCase):
 
     def test_add_repr(self):
 
-        @add_repr
+        @add_repr()
         class A:
             def __init__(self):
               self.a = 1
               self.b = 'x'
 
-        @add_repr
+        @add_repr()
         class B:
             def __init__(self):
                 self.c = 'y'
@@ -27,8 +27,20 @@ class TestAdd_repr(TestCase):
         b = B()
         self.assertEqual("B(c: 'y', d: 2, e: A(a: 1, b: 'x'))", str(b))
 
+    def test_add_repr_exclude(self):
+
+        @add_repr(['a'])
+        class A:
+            def __init__(self):
+                self.a = 1
+                self.b = 'x'
+
+        a = A()
+        self.assertEqual("A(b: 'x')", str(a))
+        self.assertEqual("A(a: 1)", a.__repr__(['b']))
+
     def test_add_repr_recursion(self):
-        @add_repr
+        @add_repr()
         class X:
             def __init__(self):
                 self.x = None
@@ -41,7 +53,7 @@ class TestAdd_repr(TestCase):
         self.assertEqual("X(x: X(x: >>>))", str(x2))
 
     def test_add_repr_max_depth(self):
-        @add_repr
+        @add_repr()
         class X:
             def __init__(self):
                 self.x = None

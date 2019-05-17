@@ -362,18 +362,6 @@ def add_eq(Cls):
     return Cls
 
 
-def add_repr(Cls):
-    def __repr__(self):
-        if AddRepr.single_line:
-            return self.__single_line_repr__()
-        else:
-            return self.__multi_line_repr__()
-    Cls = AddRepr.add_single_line_repr(Cls, "__single_line_repr__")
-    Cls = AddRepr.add_multi_line_repr(Cls, "__multi_line_repr__")
-    setattr(Cls, "__repr__", __repr__)
-    return Cls
-
-
 class AddRepr:
     indent_list = []
     idx_list = []
@@ -427,7 +415,7 @@ class AddRepr:
          - handles indentation for nested calls
          - will be added as attribute 'name' (default: __repr__)
         """
-        def description(self):
+        def __repr__(self, exclude):
             # "open" context for this object
             AddRepr.indent_list.append("│  ")
             AddRepr.idx_list.append(0)
@@ -437,6 +425,8 @@ class AddRepr:
             # add fields to string
             print_subfield_separator = True
             for key, val in self.__dict__.items():
+                if key in exclude:
+                    continue
                 # add new line (adding subfield separator the first time)
                 if print_subfield_separator:
                     s += ":\n"
@@ -462,7 +452,7 @@ class AddRepr:
             # return
             return s
 
-        setattr(Cls, name, description)
+        setattr(Cls, name, __repr__)
 
         return Cls
 
@@ -473,11 +463,13 @@ class AddRepr:
          - returns a single-line sting with the class name and all fields in self.__dict__
          - will be added as attribute 'name' (default: __repr__)
         """
-        def description(self):
+        def __repr__(self, exclude):
             AddRepr.add_to_set(self)
             s = self.__class__.__name__ + "("
             first_field = True
             for key, val in self.__dict__.items():
+                if key in exclude:
+                    continue
                 if not first_field:
                     s += ", "
                 else:
@@ -487,12 +479,27 @@ class AddRepr:
             AddRepr.remove_from_set(self)
             return s
 
-        setattr(Cls, name, description)
+        setattr(Cls, name, __repr__)
 
         return Cls
 
 
-@add_repr
+def add_repr(exclude=(), single_line=AddRepr.single_line):
+    """class decorator that adds a __repr__ function to the class"""
+    def add_repr_decorator(Cls):
+        def __repr__(self, exclude=exclude, single_line=single_line):
+            if single_line:
+                return self.__single_line_repr__(exclude=exclude)
+            else:
+                return self.__multi_line_repr__(exclude=exclude)
+        Cls = AddRepr.add_single_line_repr(Cls, "__single_line_repr__")
+        Cls = AddRepr.add_multi_line_repr(Cls, "__multi_line_repr__")
+        setattr(Cls, "__repr__", __repr__)
+        return Cls
+    return add_repr_decorator
+
+
+@add_repr()
 @add_eq
 class NDSlicable:
     """
@@ -516,7 +523,7 @@ class NDSlicable:
     is provided (i.e. None is provided) the old stop value stays in place.
     """
 
-    @add_repr
+    @add_repr()
     @add_eq
     class DimEntry:
         def __init__(self, is_fixed=False, value=None, out_of_bounds=False):
@@ -833,7 +840,7 @@ def tuple_to_index(t):
         return t
 
 
-@add_repr
+@add_repr()
 @add_eq
 class IndexRecorder:
 
