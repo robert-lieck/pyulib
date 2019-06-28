@@ -862,6 +862,7 @@ class IndexRecorder:
             if self._frozen:
                 key = tuple_to_index(key)
             container[key] = val
+        return container
 
     def __hash__(self):
         if self._frozen:
