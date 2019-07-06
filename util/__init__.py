@@ -10,6 +10,7 @@ import os
 import re
 import sys
 import pickle
+import matplotlib.pyplot as plt
 
 
 def random_string(N=16):
@@ -1000,3 +1001,45 @@ def pretty_table(iterable, alignment='l', keep_rows=False, keep_cells=False):
         return raw_table
     else:
         return '\n'.join(raw_table)
+
+
+def point_list_from_meshgrid(meshgrid):
+    return np.array(list(zip(*[dim.flatten() for dim in meshgrid])))
+
+
+def get_nd_grid(min_max_steps, margin=None, return_meshgrid=False, indexing='ij'):
+    """
+    Generate an n-dimensional grid
+    :param min_max_steps: list of (min, max, steps) for each dimension
+    :param margin: list of bools specifying whether the respective dimension should have a margin of half the grid
+    spacing; the default is no margin
+    :param return_meshgrid: whether to return the numpy meshgrid (True) or an array of points (default/False)
+    :param indexing: indexing for grid (corresponds to numpy.meshgrid parameter) 'ij' (default) or 'xy'
+    :return: meshgrid or array of points
+    """
+    dimensions = []
+    for idx, (minimum, maximum, N) in enumerate(min_max_steps):
+        if margin is not None and margin[idx]:
+            margin_width = ((maximum - minimum) / N) / 2
+        else:
+            margin_width = 0.
+        dimensions.append(list(np.linspace(minimum + margin_width, maximum - margin_width, N, endpoint=True)))
+    meshgrid = np.meshgrid(*dimensions, indexing=indexing)
+    if return_meshgrid:
+        return meshgrid
+    else:
+        return point_list_from_meshgrid(meshgrid)
+
+
+def eval_on_grid(func, min_max_steps, margin=None, accept_array=False):
+    coords = get_nd_grid(min_max_steps=min_max_steps, margin=margin)
+    if accept_array:
+        data = func(coords)
+    else:
+        data = np.array([func(c) for c in coords])
+    return data.reshape(tuple(x[2] for x in min_max_steps), order='C').transpose()
+
+
+def plot_heatmap(data, ax, imshow_kwargs, colorbar_kwargs):
+    img = ax.imshow(data, origin="lower", **imshow_kwargs)
+    plt.colorbar(img, ax=ax, **colorbar_kwargs)
