@@ -1043,3 +1043,7 @@ def eval_on_grid(func, min_max_steps, margin=None, accept_array=False):
 def plot_heatmap(data, ax, imshow_kwargs, colorbar_kwargs):
     img = ax.imshow(data, origin="lower", **imshow_kwargs)
     plt.colorbar(img, ax=ax, **colorbar_kwargs)
+
+
+def assert_xor(a, b):
+    assert (a or b) and not (a and b)
