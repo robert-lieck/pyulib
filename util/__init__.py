@@ -11,6 +11,7 @@ import re
 import sys
 import pickle
 import matplotlib.pyplot as plt
+from functools import total_ordering
 import pandas as pd
 
 
@@ -1138,3 +1139,78 @@ def unique_in_df(data_frame, n_max=np.inf):
         unique_list[-1].append(len(unique))
         unique_list[-1].append(unique)
     return unique_list
+
+
+@total_ordering
+class LogFloat:
+
+    def __init__(self, value, is_log=False):
+        if isinstance(value, LogFloat):
+            self._value = value._value
+        else:
+            if is_log:
+                self._value = value
+            else:
+                if value == 0:
+                    self._value = -np.inf
+                elif value > 0:
+                    try:
+                        self._value = np.log(np.float(value))
+                    except TypeError:
+                        raise TypeError(f"A type error occurred when passing argument '{value}' to np.log(np.float(.))")
+                else:
+                    raise ValueError(f"Cannot store negative value '{value}' in log representation")
+
+    def __float__(self):
+        return float(np.exp(self._value))
+
+    def __str__(self):
+        return f"{np.exp(self._value)}"
+
+    def __repr__(self):
+        return f"exp({self._value})"
+
+    def __hash__(self):
+        return hash(np.exp(self._value))
+
+    def __eq__(self, other):
+        return np.exp(self._value) == other
+
+    def __lt__(self, other):
+        return np.exp(self._value) < other
+
+    def __add__(self, other):
+        if isinstance(other, LogFloat):
+            return LogFloat(np.logaddexp(self._value, other._value), is_log=True)
+        else:
+            return self + LogFloat(other)
+
+    def __radd__(self, other):
+        return self.__add__(other)
+
+    def __sub__(self, other):
+        if isinstance(other, LogFloat):
+            return LogFloat(np.exp(self._value) - np.exp(other._value))
+        else:
+            return self - LogFloat(other)
+
+    def __rsub__(self, other):
+        return LogFloat(other) - self
+
+    def __mul__(self, other):
+        if isinstance(other, LogFloat):
+            return LogFloat(self._value + other._value, is_log=True)
+        else:
+            return self * LogFloat(other)
+
+    def __rmul__(self, other):
+        return self.__mul__(other)
+
+    def __truediv__(self, other):
+        if isinstance(other, LogFloat):
+            return LogFloat(self._value - other._value, is_log=True)
+        else:
+            return self / LogFloat(other)
+
+    def __rtruediv__(self, other):
+        return LogFloat(other).__truediv__(self)
