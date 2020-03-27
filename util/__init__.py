@@ -11,6 +11,7 @@ import re
 import sys
 import pickle
 import matplotlib.pyplot as plt
+import pandas as pd
 
 
 def random_string(N=16):
@@ -1115,3 +1116,25 @@ def reorder_legen_row_wise(ax, ncol):
 
 def assert_xor(a, b):
     assert (a or b) and not (a and b)
+
+
+def unique_in_df(data_frame, n_max=np.inf):
+    """
+    Return list with unique values for each column in a data frame. 1st column: column names; 2nd column: summary of
+    unique value for this column (see n_max); 3rd column: number of unique values; 4th column: complete list of unique
+    values (got via pandas unique() method)
+    :param data_frame: pandas data frame to process
+    :param n_max: maximum number of unique values to return as explicit list
+    :return: 2D list of shape (n_rows_in_df, 4)
+    """
+    unique_list = []
+    for x in data_frame.columns:
+        unique_list.append([x])
+        unique = data_frame[x].unique()
+        if len(unique) > n_max:
+            unique_list[-1].append(len(unique))
+        else:
+            unique_list[-1].append(unique)
+        unique_list[-1].append(len(unique))
+        unique_list[-1].append(unique)
+    return unique_list
