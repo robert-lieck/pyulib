@@ -1244,3 +1244,23 @@ def normalize_non_zero(a, axis=None, skip_type_check=False):
     a[non_zero_arr] = a[non_zero_arr] / s[non_zero_arr]
     # return array
     return a
+
+
+def axis_set_invisible(ax, splines=False, ticks=(), patch=False, x=False, y=False):
+    if x:
+        ax.get_xaxis().set_visible(False)
+    if y:
+        ax.get_yaxis().set_visible(False)
+    if splines:
+        plt.setp(ax.spines.values(), visible=False)
+    if ticks:
+        if 'left' in ticks or 'all' in ticks:
+            ax.tick_params(left=False, labelleft=False)
+        if 'right' in ticks or 'all' in ticks:
+            ax.tick_params(right=False, labelright=False)
+        if 'top' in ticks or 'all' in ticks:
+            ax.tick_params(top=False, labeltop=False)
+        if 'bottom' in ticks or 'all' in ticks:
+            ax.tick_params(bottom=False, labelbottom=False)
+    if patch:
+        ax.patch.set_visible(False)
