@@ -1092,5 +1092,9 @@ def plot_heatmap(data, ax, imshow_kwargs=None, colorbar_kwargs=None, colorbar=Tr
         plt.colorbar(img, ax=ax, **colorbar_kwargs)
 
 
+def next_color(ax):
+    return next(ax._get_lines.prop_cycler)['color']
+
+
 def assert_xor(a, b):
     assert (a or b) and not (a and b)
