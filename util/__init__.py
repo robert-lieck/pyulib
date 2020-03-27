@@ -1030,6 +1030,19 @@ def pretty_table(iterable, alignment='l', colsep=' ', keep_rows=None, keep_cells
         return '\n'.join(raw_table)
 
 
+def html_table(iterable, raw=False):
+    table = ""
+    for row in iterable:
+        table += "<tr>"
+        for cell in row:
+            table += f"<td>{cell}</td>"
+        table += "</tr>"
+    if raw:
+        return table
+    else:
+        return f"<table>{table}</table>"
+
+
 def point_list_from_meshgrid(meshgrid):
     return np.array(list(zip(*[dim.flatten() for dim in meshgrid])))
 
