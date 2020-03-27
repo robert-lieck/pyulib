@@ -1096,5 +1096,22 @@ def next_color(ax):
     return next(ax._get_lines.prop_cycler)['color']
 
 
+def reorder_legen_row_wise(ax, ncol):
+    # get handles and labels
+    handles, labels = ax.get_legend_handles_labels()
+    # get number of legend entries
+    n_legend = len(handles)
+    # compute number of rows needed
+    nrow = int(np.ceil(n_legend / ncol))
+    # fill index table row-wise
+    index = np.full((nrow, ncol), np.nan)
+    for idx in range(n_legend):
+        index[idx // ncol, idx % ncol] = idx
+    # reorder handles and labels by iterating over indices column-wise
+    return tuple(
+        zip(*[(handles[int(idx)], labels[int(idx)]) for idx in index.transpose().flatten() if not np.isnan(idx)])
+    )
+
+
 def assert_xor(a, b):
     assert (a or b) and not (a and b)
