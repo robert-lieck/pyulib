@@ -1221,7 +1221,7 @@ def normalize_non_zero(a, axis=None, skip_type_check=False):
     other dimensions (for that entry) is non-zero. Normalisation is performed in place."""
     # check that dtype is float (in place division of integer arrays silently rounds)
     if not skip_type_check:
-        if not np.issubdtype(a.dtype, np.float):
+        if not np.issubdtype(a.dtype, np.floating):
             raise TypeError(f"Cannot guarantee that normalisation works as expected on array of type {a.dtype}. "
                             f"Use 'skip_type_check=True' to skip this check.")
     # normalise along last axis per default
