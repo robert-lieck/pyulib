@@ -1080,9 +1080,16 @@ def eval_on_grid(func, min_max_steps, margin=None, accept_array=False):
     return data.reshape(tuple(x[2] for x in min_max_steps), order='C').transpose()
 
 
-def plot_heatmap(data, ax, imshow_kwargs, colorbar_kwargs):
-    img = ax.imshow(data, origin="lower", **imshow_kwargs)
-    plt.colorbar(img, ax=ax, **colorbar_kwargs)
+def plot_heatmap(data, ax, imshow_kwargs=None, colorbar_kwargs=None, colorbar=True):
+    if imshow_kwargs is None:
+        imshow_kwargs = {}
+    if "origin" not in imshow_kwargs:
+        imshow_kwargs["origin"] = "lower"
+    img = ax.imshow(data, **imshow_kwargs)
+    if colorbar:
+        if colorbar_kwargs is None:
+            colorbar_kwargs = {}
+        plt.colorbar(img, ax=ax, **colorbar_kwargs)
 
 
 def assert_xor(a, b):
