@@ -959,14 +959,39 @@ def default_override_exclude_dict(default_dict, override_dict=(), exclude=()):
     return return_dict
 
 
-def pretty_table(iterable, alignment='l', keep_rows=False, keep_cells=False):
+def pretty_table(iterable, alignment='l', colsep=' ', keep_rows=None, keep_cells=None, use_cols=None):
+    """
+    transform content of 2D iterable into padded strings
+    :param iterable: 2D iterable
+    :param alignment: alignment ('l', 'c', 'r'); either a single letter valid for the whole table or a list with one
+    letter for each column
+    :param colsep: separator used between columns
+    :param keep_rows: return a list of strings with one string for each row
+    :param keep_cells: return a 2D list of strings with one string for each cell (implies keep_rows=True)
+    :param use_cols: list of bools indicating whether to use the corresponding column [optional]
+    :return: string, 1D list of strings [keep_rows=True], or 2D list of strings [keep_cells=True]
+    """
+    # set default for keep_cells
+    if keep_cells is None:
+        keep_cells = False
+    # force to keep rows if not explicitly set
+    if keep_cells and keep_rows is None:
+        keep_rows = True
+    # set default for keep_rows
+    if keep_rows is None:
+        keep_rows = False
+    if keep_cells and not keep_rows:
+        raise UserWarning("Cells can only be kept if also rows are kept.")
     # get nested list of cells and determine minimum column width
     raw_table = []
     col_widths = {}
     for row in iterable:
         raw_table.append([])
         for col_idx, cell in enumerate(row):
-            cell_str = str(cell)
+            if use_cols is None or use_cols[col_idx]:
+                cell_str = str(cell)
+            else:
+                cell_str = ""
             cell_width = len(cell_str)
             raw_table[-1].append(cell_str)
             try:
@@ -994,9 +1019,11 @@ def pretty_table(iterable, alignment='l', keep_rows=False, keep_cells=False):
     # write to string
     if not keep_cells:
         for row_idx in range(len(raw_table)):
-            raw_table[row_idx] = " ".join([align(cell, width) for align, cell, width in zip(alignment,
-                                                                                            raw_table[row_idx],
-                                                                                            col_widths)])
+            raw_table[row_idx] = colsep.join([align(cell, width)
+                                              for col_idx, (align, cell, width) in enumerate(zip(alignment,
+                                                                                                 raw_table[row_idx],
+                                                                                                 col_widths))
+                                              if use_cols is None or use_cols[col_idx]])
     if keep_rows:
         return raw_table
     else:
