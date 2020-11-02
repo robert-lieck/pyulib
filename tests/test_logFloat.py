@@ -1,5 +1,5 @@
 from unittest import TestCase
-from util import LogFloat
+from pyulib import LogFloat
 import numpy as np
 from numpy.testing import assert_allclose
 

@@ -1,5 +1,5 @@
 from unittest import TestCase
-from util import in_dict_and_has_value, in_dict_and_true, in_dict_and_not_none
+from pyulib import in_dict_and_has_value, in_dict_and_true, in_dict_and_not_none
 
 
 class TestIn_dict(TestCase):

@@ -1,7 +1,7 @@
 from unittest import TestCase
 import numpy as np
 from numpy.testing import assert_array_equal
-from util import IndexRecorder, Index, index_to_tuple, tuple_to_index
+from pyulib import IndexRecorder, Index, index_to_tuple, tuple_to_index
 
 
 def random_index(max_idx=1, min_idx=0, p_None=0.2):

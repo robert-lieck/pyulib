@@ -1,7 +1,7 @@
 from unittest import TestCase
 import numpy as np
 from numpy.testing import assert_allclose
-from util import normalize_non_zero
+from pyulib import normalize_non_zero
 
 
 class TestNormalize_non_zero(TestCase):

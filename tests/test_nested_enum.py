@@ -1,7 +1,7 @@
 from unittest import TestCase
 import numpy as np
 from numpy.testing import assert_array_equal
-from util import nested_enum, append_nested
+from pyulib import nested_enum, append_nested
 
 
 class TestNested_enum(TestCase):

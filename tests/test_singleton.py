@@ -1,5 +1,5 @@
 from unittest import TestCase
-from util import add_singleton, create_singleton_class, random_string
+from pyulib import add_singleton, create_singleton_class, random_string
 
 
 class TestAdd_singleton(TestCase):

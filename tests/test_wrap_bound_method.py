@@ -1,5 +1,5 @@
 from unittest import TestCase
-from util import wrap_bound_method
+from pyulib import wrap_bound_method
 
 
 class TestWrap_bound_method(TestCase):

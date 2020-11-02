@@ -1,7 +1,7 @@
 from unittest import TestCase
 import numpy as np
-from util import NDSlicable, NestedOutput
-from util import NestedOutputDummy as NO
+from pyulib import NDSlicable, NestedOutput
+from pyulib import NestedOutputDummy as NO
 
 
 class TestNDSlicable(TestCase):

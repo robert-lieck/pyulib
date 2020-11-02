@@ -1,7 +1,7 @@
 from unittest import TestCase
-from util import add_repr, AddRepr
+from pyulib import add_repr, AddRepr
 import numpy as np
-from util import NestedOutputSingleton as NO
+from pyulib import NestedOutputSingleton as NO
 
 
 class TestAdd_repr(TestCase):

@@ -1,5 +1,5 @@
 from unittest import TestCase
-from util import pretty_table
+from pyulib import pretty_table
 
 
 class TestPretty_table(TestCase):

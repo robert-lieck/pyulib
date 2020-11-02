@@ -1,5 +1,5 @@
 from unittest import TestCase
-from util import NestedOutput, NestedOutputSingleton
+from pyulib import NestedOutput, NestedOutputSingleton
 
 
 class TestNestedOutput(TestCase):

@@ -1,5 +1,5 @@
 from unittest import TestCase
-from util import merge_dicts
+from pyulib import merge_dicts
 
 
 class TestMerge_dicts(TestCase):

@@ -1,5 +1,5 @@
 from unittest import TestCase
-from util import Index
+from pyulib import Index
 import numpy as np
 
 

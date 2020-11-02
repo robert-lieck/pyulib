@@ -122,7 +122,7 @@ class Index(object, metaclass=MetaIndex):
     A helper class to create index objects using conventional syntax by returning the index object.
     The Index class can be used as follows:
 
-        from util import Index
+        from pyulib import Index
 
         l = [1, 2, 3, 4, 5, 6]
         i = Index[1:6:2]
