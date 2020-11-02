@@ -12,7 +12,7 @@ import sys
 import pickle
 import matplotlib.pyplot as plt
 from functools import total_ordering
-import pandas as pd
+import dateutil
 
 
 def random_string(N=16):
@@ -878,8 +878,6 @@ def merge_dicts(*dicts, depth=None):
     """
     Recursively merges multiple dictionaries into one. Earlier dictionaries override later ones. If all values for
     a specific key are dictionaries, merging is performed recursively.
-    :param dicts:
-    :return:
     """
     # taken/inspired from: https: // stackoverflow.com / questions / 20656135 / python - deep - merge - dictionary - data
     # collect keys
@@ -1222,7 +1220,7 @@ def normalize_non_zero(a, axis=None, skip_type_check=False):
     # check that dtype is float (in place division of integer arrays silently rounds)
     if not skip_type_check:
         if not np.issubdtype(a.dtype, np.floating):
-            raise TypeError(f"Cannot guarantee that normalisation works as expected on array of type {a.dtype}. "
+            raise TypeError(f"Cannot guarantee that normalisation works as expected on array of type '{a.dtype}'. "
                             f"Use 'skip_type_check=True' to skip this check.")
     # normalise along last axis per default
     if axis is None:
@@ -1264,3 +1262,18 @@ def axis_set_invisible(ax, splines=False, ticks=(), patch=False, x=False, y=Fals
             ax.tick_params(bottom=False, labelbottom=False)
     if patch:
         ax.patch.set_visible(False)
+
+
+def pretty_time_diff(t1, t2):
+    rd = dateutil.relativedelta.relativedelta(t1, t2)
+    l = []
+    for att in ["years", "months", "days", "hours", "minutes", "seconds"]:
+        val = getattr(rd, att)
+        if abs(val) == 1:
+            l.append(f"{val} {att[:-1]}")
+        elif val != 0:
+            l.append(f"{val} {att}")
+    if l:
+        return ", ".join(l)
+    else:
+        return "0 seconds"
