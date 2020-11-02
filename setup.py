@@ -1,13 +1,22 @@
-from setuptools import setup
+import setuptools
 
-setup(name='python-util',
-      version='0.1',
-      description='some utility functions',
-      url='https://github.com/robert-lieck/python-util',
-      author='Robert Lieck',
-      # author_email='',
-      # license='',
-      packages=['util'],
-      zip_safe=False,
-      test_suite='nose.collector',
-      tests_require=['nose'])
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
+setuptools.setup(
+    name="pyulib",
+    version="0.1.0",
+    author="Robert Lieck",
+    author_email="robert.lieck@epfl.ch",
+    description="python utility functions",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    url="https://github.com/robert-lieck/pyulib",
+    packages=setuptools.find_packages(),
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+        "Operating System :: OS Independent",
+    ],
+    python_requires='>=3.6',
+)
