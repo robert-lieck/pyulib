@@ -186,24 +186,51 @@ class NestedOutput:
         self.active_list.pop()
         self.same_line_list.pop()
 
-    def print(self, *args, **kwargs):
-        """print into current output context using indentation provided via previous open() calls"""
-        if not self.active_list or self.active_list[-1]:
-            # go to beginning of line
-            same_line = {}
-            if self.same_line_list and self.same_line_list[-1]:
-                same_line = {'same_line': True}
-                self.same_line_func()
-            # prepending debug information
-            if self._prepend_debug:
-                caller = inspect.getframeinfo(inspect.stack()[self._prepend_debug_level][0])
-                self.debug_func(f"{caller.filename}:{caller.lineno} ")
-            # print indentation
-            self.indent_func(
-                "".join([indent if active else "" for indent, active in zip(self.indent_list, self.active_list)])
-            )
-            # print actual message
-            self.print_func(*args, **kwargs, **same_line)
+    def print(self, *args, open=None, **kwargs):
+        """
+        print into current output context using indentation provided via previous open() calls
+        :param args: args passed on to print_func
+        :param open: None (default) or dict with args or kwargs, which is used to open a context for this call only
+        :param kwargs: kwargs passed on to print_func
+        :return:
+        """
+        if open is not None:
+            # open context and print inside
+            if isinstance(open, dict):
+                with self(**open):
+                    self.print(*args, **kwargs)
+            else:
+                with self(*open):
+                    self.print(*args, **kwargs)
+        else:
+            # print directly
+            if not self.active_list or self.active_list[-1]:
+                # go to beginning of line
+                same_line = {}
+                if self.same_line_list and self.same_line_list[-1]:
+                    same_line = {'same_line': True}
+                    self.same_line_func()
+                # prepending debug information
+                if self._prepend_debug:
+                    caller = inspect.getframeinfo(inspect.stack()[self._prepend_debug_level][0])
+                    self.debug_func(f"{caller.filename}:{caller.lineno} ")
+                # print indentation
+                self.indent_func(
+                    "".join([indent if active else "" for indent, active in zip(self.indent_list, self.active_list)])
+                )
+                # print actual message
+                self.print_func(*args, **kwargs, **same_line)
+
+    def printm(self, multi_string, *args, **kwargs):
+        """
+        Print a multi-line string with correct indentation. Assumes a multiline input, which is split up and passed on
+        to the normal print function.
+        :param multi_string: multi-line string
+        :param args: other args that are passed on
+        :param kwargs: other kwargs that are passed on
+        """
+        for s in multi_string.split('\n'):
+            self.print(s, *args, **kwargs)
 
     def prepend_debug(self, prepend=True):
         self._prepend_debug = prepend
@@ -247,6 +274,10 @@ class NestedOutputSingleton:
         NestedOutputSingleton._singleton.print(*args, **kwargs)
 
     @staticmethod
+    def printm(*args, **kwargs):
+        NestedOutputSingleton._singleton.printm(*args, **kwargs)
+
+    @staticmethod
     def prepend_debug(*args, **kwargs):
         NestedOutputSingleton._singleton.prepend_debug(*args, **kwargs)
 
@@ -280,6 +311,10 @@ class NestedOutputDummy:
 
     @staticmethod
     def print(*args, **kwargs):
+        pass
+
+    @staticmethod
+    def printm(*args, **kwargs):
         pass
 
     @staticmethod
