@@ -1,7 +1,6 @@
 import functools
 from contextlib import contextmanager
 import inspect
-import numpy as np
 import types
 import numbers
 import random
@@ -10,9 +9,12 @@ import os
 import re
 import sys
 import pickle
-import matplotlib.pyplot as plt
+from io import StringIO
 from functools import total_ordering
 import dateutil
+
+import numpy as np
+import matplotlib.pyplot as plt
 
 
 def random_string(N=16):
@@ -1277,3 +1279,17 @@ def pretty_time_diff(t1, t2):
         return ", ".join(l)
     else:
         return "0 seconds"
+
+
+@ contextmanager
+def capture_stdout():
+    # remember original stdout
+    original_stdout = sys.stdout
+    # object to capture output
+    captured_output = StringIO()
+    # set stdout to that object
+    sys.stdout = captured_output
+    # yield for usage
+    yield captured_output
+    # after usage reset stdout
+    sys.stdout = original_stdout
