@@ -1,4 +1,5 @@
 import functools
+import itertools
 from contextlib import contextmanager
 import inspect
 import types
@@ -12,10 +13,30 @@ import pickle
 from io import StringIO
 from functools import total_ordering
 import dateutil
+import datetime
+import warnings
+from importlib import import_module
 
 import numpy as np
+import torch
 import matplotlib.pyplot as plt
 
+
+# unique object used as "no value provided"
+_no_value = object()
+
+
+# always use strict zip if available
+_buildin_zip = zip
+if np.all([int(i) for i in sys.version.split(".")[:2]] >= [3, 10]):
+    @functools.wraps(zip)
+    def zip(*args, **kwargs):
+        kwargs = dict(strict=True) | kwargs
+        yield from _buildin_zip(*args, **kwargs)
+else:
+    @functools.wraps(zip)
+    def zip(*args, **kwargs):
+        yield from _buildin_zip(*args, **kwargs)
 
 def random_string(N=16):
     return ''.join(random.choices(string.ascii_letters + string.digits, k=N))
@@ -758,27 +779,51 @@ def wrap_bound_method(object, method, new_name, pre=lambda: None, post=lambda: N
 
 def iterate_files(root_dir,
                   depth=-1,
-                  path_regex="",
-                  file_regex="",
+                  path_regex=None,
+                  path_incl_regex=None,
+                  path_excl_regex=None,
+                  file_regex=None,
+                  file_incl_regex=None,
+                  file_excl_regex=None,
                   return_full_path=False,
                   return_dir_path=False,
                   return_file_name=False):
     # get length of root path
     root_depth = len(root_dir.split(os.path.sep))
     # compile regex
-    path_regex = re.compile(path_regex)
-    file_regex = re.compile(file_regex)
+    if path_regex is not None:
+        warnings.warn("'path_regex' is deprecated, please use 'path_incl_regex' instead; the value of 'path_regex' "
+                      "overwrites that of 'path_incl_regex' for now", DeprecationWarning)
+        path_incl_regex = path_regex
+    if file_regex is not None:
+        warnings.warn("'file_regex' is deprecated, please use 'path_incl_regex' instead; the value of 'file_regex' "
+                      "overwrites that of 'path_incl_regex' for now", DeprecationWarning)
+        file_incl_regex = file_regex
+    if path_incl_regex is not None:
+        path_incl_regex = re.compile(path_incl_regex)
+    if path_excl_regex is not None:
+        path_excl_regex = re.compile(path_excl_regex)
+    if file_incl_regex is not None:
+        file_incl_regex = re.compile(file_incl_regex)
+    if file_excl_regex is not None:
+        file_excl_regex = re.compile(file_excl_regex)
     # walk through tree
     for dir_path, dir_names, file_names in os.walk(root_dir):
         # break on maximum depth
         if 0 <= depth < len(dir_path.split(os.path.sep)) - root_depth:
             continue
-        # skip non-matching directories
-        if not path_regex.match(dir_path):
+        # skip non-matching directories (incl)
+        if path_incl_regex is not None and not path_incl_regex.match(dir_path):
+            continue
+        # skip matching directories (excl)
+        if path_excl_regex is not None and path_excl_regex.match(dir_path):
             continue
         for file in file_names:
-            # skip non-matching files
-            if not file_regex.match(file):
+            # skip non-matching files (incl)
+            if file_incl_regex is not None and not file_incl_regex.match(file):
+                continue
+            # skip matching files (excl)
+            if file_excl_regex is not None and file_excl_regex.match(file):
                 continue
             # construct tuple to return
             ret = tuple()
@@ -980,11 +1025,11 @@ def dict_from_attributes(attributes, objects, raise_attr_error=True):
 
 def default_override_exclude_dict(default_dict, override_dict=(), exclude=()):
     """
-    Construct a dictionary using default value
+    Construct a dictionary using default values
     :param default_dict: default values; only keys contained in default_dict will be considered; their value will be the
-    one provided in default_dict, unless found in override_dice, unless found in exclude dict
+    one provided in default_dict, unless found in override_dict, unless found in exclude dict
     :param override_dict: entries in this dictionary override those in default_dict
-    :param exclude: keys found in in exclude are excluded from the return dictionary
+    :param exclude: keys found in exclude are excluded from the return dictionary
     :return: dictionary with values from default_dict or override_dict unless present in exclude
     """
     return_dict = {}
@@ -1067,12 +1112,14 @@ def pretty_table(iterable, alignment='l', colsep=' ', keep_rows=None, keep_cells
         return '\n'.join(raw_table)
 
 
-def html_table(iterable, raw=False):
+def html_table(iterable, attrs=None, raw=False):
+    if attrs is None:
+        attrs = itertools.repeat(itertools.repeat(""))
     table = ""
-    for row in iterable:
+    for row, rowattrs in zip(iterable, attrs):
         table += "<tr>"
-        for cell in row:
-            table += f"<td>{cell}</td>"
+        for cell, cellattrs in zip(row, rowattrs):
+            table += f"<td{cellattrs}>{cell}</td>"
         table += "</tr>"
     if raw:
         return table
@@ -1190,7 +1237,7 @@ class LogFloat:
                     self._value = -np.inf
                 elif value > 0:
                     try:
-                        self._value = np.log(np.float(value))
+                        self._value = np.log(float(value))
                     except TypeError:
                         raise TypeError(f"A type error occurred when passing argument '{value}' to np.log(np.float(.))")
                 else:
@@ -1251,30 +1298,85 @@ class LogFloat:
         return LogFloat(other).__truediv__(self)
 
 
-def normalize_non_zero(a, axis=None, skip_type_check=False):
-    """For the given ND array, normalise each 1D array obtained by indexing the 'axis' dimension if the sum along the
-    other dimensions (for that entry) is non-zero. Normalisation is performed in place."""
+def normalize_non_zero(a, axis=_no_value, make_zeros_uniform=False, skip_type_check=False, check_positivity=True):
+    """
+    For the given ND array (NumPy or PyTorch), normalise each 1D array obtained by indexing the 'axis' dimension if
+    the sum along the other dimensions (for that entry) is non-zero. Normalisation is performed in place.
+    """
+    # check array type (NumPy/PyTorch)
+    if isinstance(a, np.ndarray):
+        lib = "numpy"
+        any = np.any
+        all = np.all
+        logical_not = np.logical_not
+        ones_like = np.ones_like
+    elif isinstance(a, torch.Tensor):
+        lib = "pytorch"
+        any = torch.any
+        all = torch.all
+        logical_not = torch.logical_not
+        ones_like = torch.ones_like
+    else:
+        raise TypeError(f"Not implemented for arrays of type {type(a)}")
     # check that dtype is float (in place division of integer arrays silently rounds)
     if not skip_type_check:
-        if not np.issubdtype(a.dtype, np.floating):
+        if ((lib == "numpy" and not np.issubdtype(a.dtype, np.floating)) or
+                (lib == "pytorch" and not torch.is_floating_point(a))):
             raise TypeError(f"Cannot guarantee that normalisation works as expected on array of type '{a.dtype}'. "
                             f"Use 'skip_type_check=True' to skip this check.")
-    # normalise along last axis per default
-    if axis is None:
+    # check positivity
+    if check_positivity and any(a < 0):
+        raise ValueError("Some elements are negative")
+    # normalise over everything is axis is not provided
+    if axis is _no_value:
+        # if axis is not specified, keep old behaviour for compatibility
+        warnings.warn("Not passing an explicit value to 'axis' is deprecated and will result in an error in the "
+                      "future. The old behaviour of implicitly assuming the last axis is currently kept for "
+                      "compatibility. The former default value of 'None' now results in normalising over "
+                      "everything.", DeprecationWarning)
         axis = a.ndim - 1
+    elif axis is None:
+        # None normalises over everything
+        axis = tuple(range(len(a.shape)))
     # make axis a tuple if it isn't
     if not isinstance(axis, tuple):
         axis = (axis,)
-    # compute sum along axis, keeping dimensions
-    s = a.sum(axis=axis, keepdims=True)
-    # check for non-zero entries
-    non_zero = (s != 0)
-    if not np.any(non_zero):
-        # directly return if there are no non-zero entries
-        return a
-    # construct an index tuple to select the appropriate entries for normalisation (the dimensions specified by axis
-    # have to be replaced by full slices ':' to broadcast normalisation along these dimensions)
-    non_zero_arr = tuple(slice(None) if idx in axis else n for idx, n in enumerate(non_zero.nonzero()))
+
+    # helper function to compute sum and non-zero entries
+    def get_sum(a):
+        if lib == "numpy":
+            s = a.sum(axis=axis, keepdims=True)
+        if lib == "pytorch":
+            s = a.sum(dim=axis, keepdim=True)
+        non_zero = (s != 0)
+        # construct an index tuple to select the appropriate entries for normalisation (the dimensions specified by axis
+        # have to be replaced by full slices ':' to broadcast normalisation along these dimensions)
+        kwargs = dict(as_tuple=True) if lib == "pytorch" else {}
+        non_zero_arr = tuple(slice(None) if idx in axis else n for idx, n in enumerate(non_zero.nonzero(**kwargs)))
+        return s, non_zero, non_zero_arr
+
+    # compute sum and non-zero entries
+    s, non_zero, non_zero_arr = get_sum(a)
+
+    # handle zero entries
+    if not any(non_zero):
+        # all entries are zero
+        if make_zeros_uniform:
+            # replace a with uniform array
+            a = ones_like(a)
+            s = get_sum(a)
+        else:
+            # nothing to normalise: directly return
+            return a
+    elif not all(non_zero):
+        # some entries are zero
+        if make_zeros_uniform:
+            # create a uniform array, fill non-zero entries with those from a
+            new_a = ones_like(a)
+            new_a[non_zero_arr] = a[non_zero_arr]
+            a = new_a
+            s, non_zero, non_zero_arr = get_sum(a)
+
     # in-place replace non-zero entries by their normalised values
     a[non_zero_arr] = a[non_zero_arr] / s[non_zero_arr]
     # return array
@@ -1328,3 +1430,36 @@ def capture_stdout():
     yield captured_output
     # after usage reset stdout
     sys.stdout = original_stdout
+
+
+def get_timestamp():
+    return datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+
+def show_deprecation_warnings():
+    warnings.filterwarnings("always", category=DeprecationWarning)
+
+
+class DynamicImporter:
+
+    def __init__(self, name, verbose=False):
+        self._name = name
+        self._module = None
+        self._verbose = verbose
+
+    def _assert_import(self):
+        if self._module is None:
+            if self._verbose > 1:
+                print(f"Importing module '{self._name}'...")
+            elif self._verbose:
+                print(f"Importing module '{self._name}'")
+            self._module = import_module(self._name)
+            if self._verbose > 1:
+                print("DONE")
+
+    def __getattribute__(self, item):
+        if item in ['_module', '_name', '_assert_import', '_verbose']:
+            return super().__getattribute__(item)
+        else:
+            self._assert_import()
+            return getattr(self._module, item)

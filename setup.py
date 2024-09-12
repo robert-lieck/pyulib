@@ -5,9 +5,9 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pyulib",
-    version="0.1.1",
+    version="0.1.2",
     author="Robert Lieck",
-    author_email="robert.lieck@epfl.ch",
+    author_email="robert.lieck@durham.ac.uk",
     description="python utility functions",
     long_description=long_description,
     long_description_content_type="text/markdown",
